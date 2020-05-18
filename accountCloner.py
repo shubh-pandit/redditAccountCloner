@@ -1,7 +1,8 @@
 import praw, time
-timeOutDuration = 10
+timeOutDuration = 3
 from prawcore.exceptions import Forbidden
-
+from praw.models import Submission
+oldAccount = 'oldAccount'
 # replace oldAccount and oldPassword with your old Reddit account's username and password respectively
 # do the same for newAccount and newPassword for your new Reddit account
 
@@ -18,25 +19,62 @@ newReddit = praw.Reddit(client_id="SI8pN3DSbt0zor", # credentials for your new a
                      user_agent="testscript by /u/newAccount",
                      username="newAccount")
 
-subscribedSubreddits = list(oldReddit.user.subreddits(limit=None)) # fetches the list of subscribed subreddits for the old account
 
-subscribedSubreddits = list(map(str, subscribedSubreddits)) # converts the list into a string type
+def cloneSubreddits(): # function for cloning subreddits
 
-alreadySubscribedSubreddits = list(newReddit.user.subreddits(limit=None)) 
+    print('Fetching the subreddits from old account..')
+    
+    subscribedSubreddits = list(oldReddit.user.subreddits(limit=None)) # fetches the list of subscribed subreddits for the old account
+    
+    print('Fetching the subreddits from new account..')
+    
+    alreadySubscribedSubreddits = list(newReddit.user.subreddits(limit=None))# fetches the list of subscribed subreddits for the new account
 
-alreadySubscribedSubreddits = list(map(str, alreadySubscribedSubreddits))
 
 
-for sub in subscribedSubreddits: 
-    if sub not in alreadySubscribedSubreddits: # not wasting API calls if the subreddit is already subscribed to
-        print('Subscribing to r/' + sub + '..  \n') 
-        try: 
-            newReddit.subreddit(sub).subscribe() 
-        except Forbidden: # if a subreddit is inaccesible or the script times out
-            print('Unable to subscribe to r/' + sub + '\n') 
-            file = open("subsNotSubscribed.txt","a") 
-            file.write(sub +'\n') # the names of the subs are written to a text file
-            file.close()
-            time.sleep(30) # pauses the script for 30 seconds in case of an API time out
-        time.sleep(timeOutDuration) # pausing the script for some duration to prevent a time out
+    for sub in subscribedSubreddits: 
+        if sub not in alreadySubscribedSubreddits:
+            print('Subscribing to r/' + str(sub) + '..  \n') 
+            try: 
+                newReddit.subreddit(sub).subscribe() 
+            except Forbidden: # if a subreddit is inaccesible or the script times out
+                print('Unable to subscribe to r/' + str(sub) + '\n') 
+                file = open("subsNotSubscribed.txt","a") 
+                file.write(str(sub) +'\n') # the names of the subs are written to a text file
+                file.close()
+                time.sleep(30) # pauses the script for 30 seconds in case of an API time out
+            time.sleep(timeOutDuration) # pausing the script for some duration to prevent a time out
 
+
+def cloneSavedItems(): #function for cloning saved items
+
+    print('Fetching the saved links from old account..')
+
+    
+    savedLinks = oldReddit.redditor(oldAccount).saved(limit=None) # fetching the saved links from old account
+
+    for item in savedLinks:
+        if isinstance(item, Submission): # checking if the item is a submission or a comment
+            try:
+                print('Saving submission id = ' + str(item) + '\n')
+                newReddit.submission(id=item).save() # saving the item to the new account
+            except:
+                print('Unable to save post id = ' + str(item) + '\n')
+                file = open("itemsNotSaved.txt","a") 
+                file.write(str(item) +'\n') # the ids of the items are written to a text file
+                file.close()
+        else :
+            try:
+                print('Saving comment id = ' + str(item) + '\n')
+                newReddit.comment(id=item).save()
+            except:
+                print('Unable to save comment id = ' + str(item) + '\n')
+                file = open("itemsNotSaved.txt","a") 
+                file.write(str(item) +'\n')
+                file.close()
+            
+
+
+cloneSubreddits()
+
+cloneSavedItems()
